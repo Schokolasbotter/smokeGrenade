@@ -25,6 +25,8 @@ Shader "Unlit/DebugVoxels"
             float _VoxelSize;
             int _MaxFillSteps, _DebugVoxels;
 
+            StructuredBuffer<int> _SmokeBuffer;
+
             struct appdata
             {
                 float4 vertex : POSITION;
@@ -58,9 +60,15 @@ Shader "Unlit/DebugVoxels"
                 uint z = instanceID / (_VoxelResolution.x * _VoxelResolution.y);
                 //calculates the new positions
                 i.vertex = UnityObjectToClipPos((v.vertex + float3(x, y, z)) * _VoxelSize + (_VoxelSize * 0.5f) - _BoundsExtent);
+                i.vertex *= _SmokeBuffer[instanceID];
                 //calculates normal
                 i.normal = UnityObjectToWorldNormal(v.normal);
                 i.hashCol = float3(hash(instanceID), hash(instanceID * 2), hash(instanceID * 3));
+                //i.hashCol = float3(_SmokeBuffer[instanceID], _SmokeBuffer[instanceID], _SmokeBuffer[instanceID]);
+
+
+
+
                 return i;
             }
 
