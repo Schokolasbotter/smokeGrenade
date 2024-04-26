@@ -353,11 +353,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   boundsExtent: {x: 10, y: 10, z: 10}
-  voxelSize: 1
+  voxelSize: 0.5
   voxelsX: 0
   voxelsY: 0
   voxelsZ: 0
   totalVoxels: 0
+  smokeRadius: 4
   debugMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!4 &352601421
 Transform:

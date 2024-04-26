@@ -13,7 +13,7 @@ public class Voxeliser : MonoBehaviour
     public ComputeBuffer smokeBuffer;
     public int voxelsX, voxelsY, voxelsZ, totalVoxels;
 
-    private int smokeRadius = 4;
+    public int smokeRadius = 4;
     private Vector3 smokeOrigin;
 
     public Mesh debugMesh;
@@ -23,8 +23,6 @@ public class Voxeliser : MonoBehaviour
     // Start is called before the first frame update
     void OnEnable()
     {
-        
-
         Vector3 boundsSize = boundsExtent * 2;
         debugBounds = new Bounds(new Vector3(0, boundsExtent.y, 0), boundsSize);
 
@@ -98,7 +96,7 @@ public class Voxeliser : MonoBehaviour
                 {
                     // Calculate the position of the current voxel
                     Vector3 voxelPos = new Vector3(x * voxelSize, y * voxelSize, z * voxelSize);
-
+                    voxelPos -= new Vector3(boundsExtent.x,0,boundsExtent.z);
                     // Calculate the distance between the voxel and the smoke origin
                     float distance = Vector3.Distance(voxelPos, smokeOrigin);
 
