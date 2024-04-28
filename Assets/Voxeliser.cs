@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor.UIElements;
 using UnityEngine;
 
 public class Voxeliser : MonoBehaviour
@@ -15,6 +16,9 @@ public class Voxeliser : MonoBehaviour
 
     public int smokeRadius = 4;
     private Vector3 smokeOrigin;
+    private float smokeTimer = 10f;
+    public float smokeExpansionTime;
+    public AnimationCurve easingCurve;
 
     public Mesh debugMesh;
     private Material debugMaterial;
@@ -63,15 +67,17 @@ public class Voxeliser : MonoBehaviour
             RaycastHit hit;
             if (Physics.Raycast(ray, out hit, 100))
             {
+                smokeTimer = 0f;
                 smokeOrigin = hit.point;
-                UpdateSmokeBuffer();
             }
         }
 
+        if (Time.frameCount % 30 == 0)
+        {
+            UpdateSmokeBuffer();
+        }
 
-
-
-
+        smokeTimer += Time.deltaTime;
 
         debugMaterial.SetVector("_VoxelResolution", new Vector3(voxelsX, voxelsY, voxelsZ));
         debugMaterial.SetVector("_BoundsExtent", boundsExtent);
@@ -99,9 +105,12 @@ public class Voxeliser : MonoBehaviour
                     voxelPos -= new Vector3(boundsExtent.x,0,boundsExtent.z);
                     // Calculate the distance between the voxel and the smoke origin
                     float distance = Vector3.Distance(voxelPos, smokeOrigin);
-
+                    //Calculate smokeRadius from timer;
+                    float normalValue = Mathf.InverseLerp(0f, smokeExpansionTime, smokeTimer);
+                    float currentSmokeRadius = easingCurve.Evaluate(normalValue) * smokeRadius;
+                    
                     // If the distance is within the radius, set the voxel value to 1 in the smoke buffer
-                    if (distance <= smokeRadius)
+                    if (distance <= currentSmokeRadius)
                     {
                         int index = x + y * voxelsX + z * voxelsX * voxelsY;
                         smokeData[index] = 1;
