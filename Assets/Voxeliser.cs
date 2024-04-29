@@ -10,7 +10,7 @@ public class Voxeliser : MonoBehaviour
     
     [Header("")]
     public float voxelSize = 0.5f;
-    private ComputeBuffer argBuffer, buffer;
+    private ComputeBuffer argBuffer;
     public ComputeBuffer smokeBuffer;
     public int voxelsX, voxelsY, voxelsZ, totalVoxels;
 
@@ -23,6 +23,8 @@ public class Voxeliser : MonoBehaviour
     public Mesh debugMesh;
     private Material debugMaterial;
     private Bounds debugBounds;
+
+    public bool Debugging = false;
 
     // Start is called before the first frame update
     void OnEnable()
@@ -69,6 +71,7 @@ public class Voxeliser : MonoBehaviour
             {
                 smokeTimer = 0f;
                 smokeOrigin = hit.point;
+                
             }
         }
 
@@ -79,11 +82,14 @@ public class Voxeliser : MonoBehaviour
 
         smokeTimer += Time.deltaTime;
 
+
+        if (!Debugging) return;
         debugMaterial.SetVector("_VoxelResolution", new Vector3(voxelsX, voxelsY, voxelsZ));
         debugMaterial.SetVector("_BoundsExtent", boundsExtent);
         debugMaterial.SetFloat("_VoxelSize", voxelSize);
 
         debugMaterial.SetBuffer("_SmokeBuffer", smokeBuffer);
+
         Graphics.DrawMeshInstancedIndirect(debugMesh, 0, debugMaterial, debugBounds, argBuffer);
     }
 
@@ -136,14 +142,12 @@ public class Voxeliser : MonoBehaviour
         for (int i = 0; i < totalVoxels; i++)
         {
             // Output each element of the array to the console
-            Debug.Log("SmokeBuffer[" + i + "] = " + smokeBufferData[i]);
+           // Debug.Log("SmokeBuffer[" + i + "] = " + smokeBufferData[i]);
         }
     }
 
     void OnDestroy()
     {
-        if (buffer != null)
-            buffer.Release();
         if (smokeBuffer != null)
             smokeBuffer.Release();
         if (argBuffer != null)
