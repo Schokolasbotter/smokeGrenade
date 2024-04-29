@@ -12,10 +12,11 @@ public class Voxeliser : MonoBehaviour
     public float voxelSize = 0.5f;
     private ComputeBuffer argBuffer;
     public ComputeBuffer smokeBuffer;
+    public int[] smokeArr;
     public int voxelsX, voxelsY, voxelsZ, totalVoxels;
 
-    public int smokeRadius = 4;
-    private Vector3 smokeOrigin;
+    public float smokeRadius = 4;
+    public Vector3 smokeOrigin;
     private float smokeTimer = 10f;
     public float smokeExpansionTime;
     public AnimationCurve easingCurve;
@@ -40,6 +41,7 @@ public class Voxeliser : MonoBehaviour
 
 
         smokeBuffer = new ComputeBuffer(totalVoxels, sizeof(int));
+        smokeArr = new int[totalVoxels];
         int[] initialSmokeData = new int[totalVoxels]; // Create an array to hold initial smoke data
         for (int i = 0; i < totalVoxels; i++)
         {
@@ -98,6 +100,8 @@ public class Voxeliser : MonoBehaviour
         // Clear the smoke buffer
         int[] smokeData = new int[totalVoxels];
         smokeBuffer.SetData(smokeData);
+        
+
 
         // Iterate through each voxel
         for (int x = 0; x < voxelsX; x++)
@@ -127,8 +131,10 @@ public class Voxeliser : MonoBehaviour
 
         // Update the smoke buffer with the new data
         smokeBuffer.SetData(smokeData);
+        smokeBuffer.GetData(smokeArr);
         InspectSmokeBuffer();
     }
+
 
     void InspectSmokeBuffer()
     {

@@ -48,7 +48,6 @@ Shader "Unlit/Combiner"
                 fixed4 colSrc = tex2D(_MainTex, i.uv);
                 fixed4 colSmoke = tex2D(_SmokeTex, i.uv);
                 // Blend the colors using alpha blending
-                fixed4 redColor = fixed4(1.0, 0.0, 0.0, 1.0);
                 fixed4 finalColor = colSmoke.a * colSmoke + (1 - colSmoke.a) * colSrc;
 
                 

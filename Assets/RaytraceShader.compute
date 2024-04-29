@@ -1,9 +1,11 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSRaytrace
+#pragma kernel CS_Noise
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 RWTexture2D<float4> _ResultTexture;
+
 int _TextureWidth;
 int _TextureHeight;
 
@@ -18,69 +20,92 @@ float4x4 _invProjectionMatrix;
 float4x4 _CamToWorldMatrix;
 float3 camPosWS;
 
+float3 _SmokeOrigin;
+float _SmokeRadius;
+float _Smoothing;
+float _DensityMult;
 float _RayMaxLength;
 
-// Buffer to store ray vectors
-RWStructuredBuffer<float3> _RayPositionsBuffer;
-RWStructuredBuffer<float4> _RayColBuffer;
 
+///////////////////////////////////////////////////////
 
-uint to1D(uint3 pos) {
-    return pos.x + pos.y * _VoxelResolution + pos.z * _VoxelResolution * _VoxelResolution;
+RWTexture2D<float4> _NoiseTexture;
+uint2 _NoiseResolution;
+float _Scale;
+
+[numthreads(8, 8, 1)]
+void CS_Noise(uint3 id : SV_DispatchThreadID){
+    uint width = _NoiseResolution.x;
+    uint height = _NoiseResolution.y;
+
+    if (id.x >= width || id.y >= height) return;
+    float2 uv = float2(id.x, id.y) / _NoiseResolution;
+    uv *= _Scale;
+
+    float2 bestPoint;
+    float minDist = 1.0; // Large initial distance
+
+    // Sample random points in the neighborhood
+    int range = 2; // Search range for neighboring seeds
+    for (int j = -range; j <= range; j++)
+    {
+        for (int i = -range; i <= range; i++)
+        {
+            float2 cell = floor(uv) + float2(i, j);
+            float2 kPoint = cell + frac(sin(dot(cell, float2(12.9898, 78.233))) * 43758.5453);
+            float dist = distance(uv, kPoint);
+            if (dist < minDist)
+            {
+                minDist = dist;
+                bestPoint = kPoint;
+            }
+        }
+    }
+
+    // Color based on the distance
+    float color = minDist;
+    _NoiseTexture[id.xy] = float4(color, color, color, 1.0);
+
 }
 
-int getSmokeVoxel(float3 position, int indexx) {
+///////////////////////////////////////////////////////
+
+
+int getSmokeVoxel(float3 position) {
    // int returnVal = -1;
     // Check if the world space position is currently within the bounds
     // If they are not, return 0;
+    
+
     if (position.x < -_BoundsExtent.x || position.x > _BoundsExtent.x ||
         position.y < -_BoundsExtent.y + _BoundsExtent.y || position.y > _BoundsExtent.y+ _BoundsExtent.y ||
         position.z < -_BoundsExtent.z || position.z > _BoundsExtent.z)
     {
-        _RayColBuffer[indexx] = float4(0., 0., 1.0,0.03);
         return -1;
     }
-
-
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //@Laurent if your looking at this before i get back, below is the section that doesnt quite work, converting between the ws position of the raytrace and the index of the voxel grid
-    // if we can get that working then thats the essential stuff done
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-
-    //bound check works as intended
-
-    // Get the index of the voxel in the _SmokeVoxels buffer that the current position falls within
- //   int3 positionVS = int3(
- ////       int(floor(position.x / _VoxelResolution)),
- //       int(floor(position.y / _VoxelResolution)),
-//        int(floor(position.z / _VoxelResolution))
- //       );
-
- //   int index = positionVS.x + positionVS.y * int(_VoxelResolution) + positionVS.z * int(_VoxelResolution * _VoxelResolution);
-
-   
-     // Step 1: Add bounds extent and half voxel size to bring the position into voxel space
-
-   // Vector3 boundsSize = _BoundsExtent * 2;
+    
 
     float3 adjustedPosition = position + float3(_BoundsExtent.x, 0, _BoundsExtent.z);
 
-    // Step 2: Calculate x, y, and z indices
-    float x = adjustedPosition.x;
-    float y = adjustedPosition.y;
-    float z = adjustedPosition.z;
+    adjustedPosition /= _VoxelResolution;
+    adjustedPosition = floor(adjustedPosition);
+   // adjustedPosition *= _VoxelResolution;
 
-    // Step 3: Calculate the instance ID (index)
-    uint instanceID = int(x + y * _VoxelsX + z * _VoxelsX * _VoxelsY);
+    int index = adjustedPosition.z * (_VoxelsX * _VoxelsY) + adjustedPosition.y * _VoxelsX + adjustedPosition.x;
+    return _SmokeVoxels[index];
 
-    return _SmokeVoxels[instanceID];
-
-   // return v;
 }
 
+float sampleDensity(float3 pos) {
+    float distanceFromOrigin = length(pos - _SmokeOrigin); // Calculate the Euclidean distance from the origin
+    float normalizedDistance = distanceFromOrigin / _SmokeRadius; // Normalize based on the smoke radius
+    // Smoothstep to create a soft edge as it approaches the boundary of the smoke radius
+
+
+    return 1- smoothstep(_Smoothing,1.,normalizedDistance); // Softens edges between 80% and 100% of the radius
+
+
+}
 
 [numthreads(8, 8, 1)]
 void CSRaytrace(uint3 id : SV_DispatchThreadID)
@@ -93,37 +118,39 @@ void CSRaytrace(uint3 id : SV_DispatchThreadID)
     float3 rayVector = mul(_CamToWorldMatrix, float4(viewDir, 0)).xyz;
     rayVector = normalize(rayVector);
 
-    float4 col = float4(0.0, 1.0, 0.0, 0.5);  // Initialize color
+    float4 col = float4(0.0, 0.0, 0.0, 0.0);  // Initialize color
 
     float3 positionWS = origin;
 
     uint rayIndex = id.y * _TextureWidth + id.x;
 
     float length = 0;
-    float stepSize =3;
+    float stepSize =0.5;
     float smokeValue = -1;
 
     // Ray marching loop
     while (smokeValue <= 0 && length < _RayMaxLength) {
         length += stepSize;
         positionWS = origin + length * rayVector;
-        uint bufferIndex = rayIndex * uint(_RayMaxLength / stepSize) + uint(length / stepSize);
-        
-     //   if (bufferIndex < _RayPositionsBuffer.count) {
-            _RayPositionsBuffer[bufferIndex] = positionWS;
-            _RayColBuffer[bufferIndex] = float4(0.,0.,1.,1.);
-    //    }
-
-        smokeValue = getSmokeVoxel(positionWS,bufferIndex);
+        smokeValue = getSmokeVoxel(positionWS);
     }
-    // If smokeValue is 1, set color to white
+
+
     if (smokeValue == 1) {
-        col = float4(1.0, 1.0, 1.0, 1.0); // White color
-    }
-    if (smokeValue == -1) {
-        col = float4(1.0, 0.0, 0.0, 0.5);
-    }
+        int stage2StepMax = 20;
+        int stage2StepNum = 0;
+        float accumulatedDensity = 0;
+        while (stage2StepNum < stage2StepMax) {
 
+            float3 samplePoint = origin + length * rayVector;
+            accumulatedDensity += saturate(sampleDensity(samplePoint)) * _DensityMult;
+
+            length += stepSize;
+            col = float4(0.4, 0.4, 0.4, accumulatedDensity);
+            stage2StepNum++;
+        }
+    }
+    
     // Output the color to the render texture
     _ResultTexture[id.xy] = col;
 }
