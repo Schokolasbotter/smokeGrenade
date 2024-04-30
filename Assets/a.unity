@@ -317,7 +317,7 @@ Transform:
   m_GameObject: {fileID: 203706392}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 5, z: 0}
   m_LocalScale: {x: 20, y: 20, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -359,7 +359,7 @@ MonoBehaviour:
   voxelsY: 0
   voxelsZ: 0
   totalVoxels: 0
-  smokeRadius: 4
+  smokeRadius: 4.12
   smokeOrigin: {x: 0, y: 0, z: 0}
   smokeExpansionTime: 3
   easingCurve:
@@ -387,7 +387,7 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   debugMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-  Debugging: 1
+  Debugging: 0
 --- !u!4 &352601421
 Transform:
   m_ObjectHideFlags: 0
@@ -490,7 +490,7 @@ Transform:
   m_GameObject: {fileID: 812109457}
   serializedVersion: 2
   m_LocalRotation: {x: 0.19851261, y: 0, z: 0, w: 0.9800983}
-  m_LocalPosition: {x: 0, y: 4.64, z: -10.65}
+  m_LocalPosition: {x: 0, y: 9.83, z: -10.65}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -511,12 +511,13 @@ MonoBehaviour:
   raymarchComputeShader: {fileID: 7200000, guid: 321fb2146ee0fbc4081456136216f691, type: 3}
   voxeliser: {fileID: 352601420}
   length: 10
-  smoothing: 0.99
+  smoothing: 0.85
   densityMUlt: 0.2
   testCase: {x: 0, y: 0, z: 0}
   textureWidth: 256
   textureHeight: 256
   scale: 10
+  kernalNum2: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

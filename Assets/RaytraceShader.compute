@@ -27,6 +27,7 @@ float _DensityMult;
 float _RayMaxLength;
 
 
+float _Time;
 ///////////////////////////////////////////////////////
 
 RWTexture2D<float4> _NoiseTexture;
@@ -41,6 +42,8 @@ void CS_Noise(uint3 id : SV_DispatchThreadID){
     if (id.x >= width || id.y >= height) return;
     float2 uv = float2(id.x, id.y) / _NoiseResolution;
     uv *= _Scale;
+    uv += _Time/5;
+
 
     float2 bestPoint;
     float minDist = 1.0; // Large initial distance
@@ -63,7 +66,7 @@ void CS_Noise(uint3 id : SV_DispatchThreadID){
     }
 
     // Color based on the distance
-    float color = minDist;
+    float color = 1-minDist;
     _NoiseTexture[id.xy] = float4(color, color, color, 1.0);
 
 }
@@ -96,13 +99,15 @@ int getSmokeVoxel(float3 position) {
 
 }
 
-float sampleDensity(float3 pos) {
+float sampleDensity(float3 pos,float2 uv) {
     float distanceFromOrigin = length(pos - _SmokeOrigin); // Calculate the Euclidean distance from the origin
     float normalizedDistance = distanceFromOrigin / _SmokeRadius; // Normalize based on the smoke radius
     // Smoothstep to create a soft edge as it approaches the boundary of the smoke radius
 
-
-    return 1- smoothstep(_Smoothing,1.,normalizedDistance); // Softens edges between 80% and 100% of the radius
+    float noiseValue = _NoiseTexture[uint2(uv.x * _NoiseResolution.x, uv.y * _NoiseResolution.y)].r;
+    //here i use _NoiseTexture which is a RWTexture2d<float4> that is _NoiseResolution.xy in size  we use the uv coordinates to get the value stored in the red channel and add it to the normalisedDistance
+    noiseValue *= 0.1;
+    return 1- smoothstep(_Smoothing,1.,normalizedDistance+noiseValue); // Softens edges between 80% and 100% of the radius
 
 
 }
@@ -125,8 +130,9 @@ void CSRaytrace(uint3 id : SV_DispatchThreadID)
     uint rayIndex = id.y * _TextureWidth + id.x;
 
     float length = 0;
-    float stepSize =0.5;
+    float stepSize =0.2;
     float smokeValue = -1;
+
 
     // Ray marching loop
     while (smokeValue <= 0 && length < _RayMaxLength) {
@@ -137,19 +143,20 @@ void CSRaytrace(uint3 id : SV_DispatchThreadID)
 
 
     if (smokeValue == 1) {
-        int stage2StepMax = 20;
+        int stage2StepMax = 40;
         int stage2StepNum = 0;
         float accumulatedDensity = 0;
         while (stage2StepNum < stage2StepMax) {
 
             float3 samplePoint = origin + length * rayVector;
-            accumulatedDensity += saturate(sampleDensity(samplePoint)) * _DensityMult;
+            accumulatedDensity += saturate(sampleDensity(samplePoint, uv)) * _DensityMult;
 
             length += stepSize;
             col = float4(0.4, 0.4, 0.4, accumulatedDensity);
             stage2StepNum++;
         }
     }
+
     
     // Output the color to the render texture
     _ResultTexture[id.xy] = col;

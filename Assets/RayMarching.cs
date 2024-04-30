@@ -11,7 +11,7 @@ public class RayMarching : MonoBehaviour
     public Voxeliser voxeliser;
 
     private int kernelIndex;
-    private RenderTexture smokeTexture;
+    private RenderTexture smokeTexture, depthTex;
     private Material combiningMaterial;
 
     private int width, height;
@@ -30,22 +30,23 @@ public class RayMarching : MonoBehaviour
     public int kernalNum2;
     ///////////////////////////////////////////
     /// <summary>
- //   RWTexture2D<float4> _NoiseTexture; uint2 _NoiseResolution;  float _Scale;
+
 
     /// </summary>
     void Start()
     {
         cam = Camera.main;
+
         kernelIndex = raymarchComputeShader.FindKernel("CSRaytrace");
-     //   kernalNum2 = raymarchComputeShader.FindKernel()
+    //    kernalNum2 = raymarchComputeShader.FindKernel()
         combiningMaterial = new Material(Shader.Find("Unlit/Combiner"));
 
 
        // width = Screen.width;
        // height = Screen.height;
 
-        width = Mathf.CeilToInt(Screen.width / 4);
-        height = Mathf.CeilToInt(Screen.height / 4);
+        width = Mathf.CeilToInt(Screen.width / 8);
+        height = Mathf.CeilToInt(Screen.height / 8);
 
         // Initialize and set up the smoke texture
         smokeTexture = new RenderTexture(width,height , 0, RenderTextureFormat.ARGB64, RenderTextureReadWrite.Linear);
@@ -62,15 +63,17 @@ public class RayMarching : MonoBehaviour
         raymarchComputeShader.SetInt("_VoxelsZ", voxeliser.voxelsZ);
 
 
-     //   resultTexture = new RenderTexture(256,256, 0, RenderTextureFormat.ARGB64, RenderTextureReadWrite.Linear);
-     //   resultTexture.enableRandomWrite = true;
+        resultTexture = new RenderTexture(256,256, 0, RenderTextureFormat.ARGB64, RenderTextureReadWrite.Linear);
+        resultTexture.enableRandomWrite = true;
 
+        raymarchComputeShader.SetFloat("_Time", Time.time);
+        raymarchComputeShader.SetTexture(1, "_NoiseTexture", resultTexture);
 
-     //   raymarchComputeShader.SetTexture(0, "_NoiseTexture", resultTexture);
-     //   raymarchComputeShader.SetVector("_NoiseResolution", new Vector2(textureWidth, textureHeight));
-    //    raymarchComputeShader.SetFloat("_Scale", scale);
-    //    raymarchComputeShader.Dispatch(kernelHandle, textureWidth / 8, textureHeight / 8, 1);
+        raymarchComputeShader.SetVector("_NoiseResolution", new Vector2(textureWidth, textureHeight));
+        raymarchComputeShader.SetFloat("_Scale", scale);
+        raymarchComputeShader.Dispatch(1, textureWidth / 8, textureHeight / 8, 1);
 
+   
 
     }
 
@@ -89,13 +92,19 @@ public class RayMarching : MonoBehaviour
 
         raymarchComputeShader.SetVector("_SmokeOrigin", voxeliser.smokeOrigin);
         raymarchComputeShader.SetFloat("_SmokeRadius", (float)voxeliser.smokeRadius);
+        raymarchComputeShader.SetTexture(0, "_NoiseTexture", resultTexture);
         // Dispatch the compute shader
         raymarchComputeShader.SetTexture(kernelIndex, "_ResultTexture", smokeTexture);
         raymarchComputeShader.Dispatch(kernelIndex, smokeTexture.width / 8, smokeTexture.height / 8, 1);
 
+        raymarchComputeShader.SetFloat("_Time", Time.time);
+        raymarchComputeShader.SetTexture(1, "_NoiseTexture", resultTexture);
+        raymarchComputeShader.Dispatch(1, textureWidth / 8, textureHeight / 8, 1);
+
         // Combine textures
         combiningMaterial.SetTexture("_MainTex", source);
         combiningMaterial.SetTexture("_SmokeTex", smokeTexture);
+        combiningMaterial.SetTexture("_VoronoiTex", resultTexture);
 
         Graphics.Blit(source, destination, combiningMaterial);
 

@@ -4,6 +4,7 @@ Shader "Unlit/Combiner"
     {
         _MainTex ("Texture", 2D) = "white" {}
         _SmokeTex("Smoke Texture", 2D) = "white" {}
+        _VoronoiTex("Voronoi Texture", 2D) = "white" {}
     }
     SubShader
     {
@@ -34,6 +35,7 @@ Shader "Unlit/Combiner"
 
             sampler2D _MainTex;
             sampler2D _SmokeTex;
+            sampler2D _VoronoiTex;
 
             v2f vert(appdata v)
             {
@@ -47,10 +49,16 @@ Shader "Unlit/Combiner"
             {
                 fixed4 colSrc = tex2D(_MainTex, i.uv);
                 fixed4 colSmoke = tex2D(_SmokeTex, i.uv);
-                // Blend the colors using alpha blending
-                fixed4 finalColor = colSmoke.a * colSmoke + (1 - colSmoke.a) * colSrc;
+                float colNoise = tex2D(_VoronoiTex, i.uv).r;
 
-                
+                colNoise = saturate(colNoise + .1);
+
+
+            //    float n1 = noise(i.uv); // Corrected to use a vector if 'i.uv' is a float2 type
+             //   fixed4 noiseContribution = fixed4(n1, n1, n1, 1);
+
+                fixed4 finalColor = colSmoke.a * (colSmoke*(colNoise*0.4)) + (1 - colSmoke.a) * colSrc;
+
                 return finalColor;
             }
             ENDCG
